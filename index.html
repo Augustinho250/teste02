@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulário para XLSX</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background: #f4f4f4; padding: 20px; }
+        
+        .container { 
+            max-width: 900px; 
+            margin: auto; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 10px; 
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 { text-align: center; margin-bottom: 20px; color: #333; }
+
+        .form-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        label { font-weight: bold; color: #555; }
+
+        input, select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+
+        .save-button {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 300px;
+            padding: 12px;
+            background: #28a745;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .save-button:hover { background: #218838; }
+
+        @media (max-width: 600px) {
+            .form-group { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Formulário de Inspeção</h2>
+
+    <form id="dataForm">
+        <div class="form-group">
+            <label>Data:</label> <input type="date" id="data">
+            <label>Projeto:</label> <input type="text" id="projeto">
+        </div>
+
+        <div class="form-group">
+            <label>Subestação:</label> <input type="text" id="subestacao">
+            <label>Tensão Nominal:</label> <input type="text" id="tensao">
+        </div>
+
+        <div class="form-group">
+            <label>Fabricante:</label> <input type="text" id="fabricante">
+            <label>Tipo:</label> <input type="text" id="tipo">
+        </div>
+
+        <div class="form-group">
+            <label>Data de Fabricação:</label> <input type="date" id="data_fabricacao">
+            <label>Tempo:</label> <input type="text" id="tempo">
+        </div>
+
+        <div class="form-group">
+            <label>Temperatura Ambiente:</label> <input type="text" id="temp_ambiente">
+            <label>URA:</label> <input type="text" id="ura">
+        </div>
+
+        <div class="form-group">
+            <label>Número de Série Fase A:</label> <input type="text" id="n_serie_a">
+            <label>Número de Série Fase B:</label> <input type="text" id="n_serie_b">
+        </div>
+
+        <div class="form-group">
+            <label>Número de Série Fase V:</label> <input type="text" id="n_serie_v">
+            <label>Número de Série Fase R:</label> <input type="text" id="n_serie_r">
+        </div>
+
+        <div class="form-group">
+            <label>R. Isolamento Fase A 1min:</label> <input type="text" id="r_isolamento_a">
+            <label>R. Isolamento Fase B 1min:</label> <input type="text" id="r_isolamento_b">
+        </div>
+
+        <div class="form-group">
+            <label>R. Isolamento Fase V 1min:</label> <input type="text" id="r_isolamento_v">
+            <label>R. Isolamento Fase R 1min:</label> <input type="text" id="r_isolamento_r">
+        </div>
+
+        <div class="form-group">
+            <label>Instrumento Utilizado:</label> <input type="text" id="instrumento">
+            <label>Modelo:</label> <input type="text" id="modelo">
+        </div>
+
+        <div class="form-group">
+            <label>Número de Série:</label> <input type="text" id="n_serie">
+            <label>Data de aferição:</label> <input type="date" id="data_afericao">
+        </div>
+		<div class="form-group">
+            <label>Número Contador de Descarga Antes Fase A:</label> <input type="text" id="ContadorA1">
+            <label>Número Contador de Descarga Antes Fase B:</label> <input type="text" id="ContadorB1">
+            <label>Número Contador de Descarga Antes Fase V:</label> <input type="text" id="ContadorV1">
+            <label>Número Contador de Descarga Antes Fase R:</label> <input type="text" id="ContadorR1">
+			<label>Número Contador de Descarga Depois Fase A:</label> <input type="text" id="ContadorA2">
+            <label>Número Contador de Descarga Depois Fase B:</label> <input type="text" id="ContadorB2">
+            <label>Número Contador de Descarga Depois Fase V:</label> <input type="text" id="ContadorV2">
+            <label>Número Contador de Descarga Depois Fase R:</label> <input type="text" id="ContadorR2">
+        </div>
+
+        <div class="form-group">
+            <label>Dados de Placa Fase A:</label> 
+            <select id="dados_placa_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Dados de Placa Fase B:</label> 
+            <select id="dados_placa_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Dados de Placa Fase V:</label> 
+            <select id="dados_placa_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Dados de Placa Fase R:</label> 
+            <select id="dados_placa_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+		<div class="form-group">
+            <label>Condições de Pintura Fase A:</label> 
+            <select id="pintura_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Condições de Pintura Fase B:</label> 
+            <select id="Pintura_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Condições de Pintura Fase V:</label> 
+            <select id="Pintura_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Condições de Pintura Fase R:</label> 
+            <select id="Pintura_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+
+        <div class="form-group">
+            <label>Isoladores Fase A:</label> 
+            <select id="isoladores_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Isoladores Fase B:</label> 
+            <select id="isoladores_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Isoladores Fase V:</label> 
+            <select id="isoladores_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Isoladores Fase R:</label> 
+            <select id="isoladores_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+	        <div class="form-group">
+            <label>Fixação/montagem (alinhamento/nivelamento) FASE A:</label> 
+            <select id="fixacao_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Fixação/montagem (alinhamento/nivelamento) FASE B:</label> 
+            <select id="fixacao_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Fixação/montagem (alinhamento/nivelamento) FASE V:</label> 
+            <select id="fixacao_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Fixação/montagem (alinhamento/nivelamento) FASE R:</label> 
+            <select id="fixacao_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+	        <div class="form-group">
+            <label>Aterramento FASE A:</label> 
+            <select id="terra_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Aterramento FASE B:</label> 
+            <select id="terra_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Aterramento FASE V:</label> 
+            <select id="terra_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Aterramento FASE R:</label> 
+            <select id="terra_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+	        <div class="form-group">
+            <label>Condições dos cabos e conexões FASE A:</label> 
+            <select id="cabos_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Condições dos cabos e conexões FASE B:</label> 
+            <select id="cabos_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Condições dos cabos e conexões FASE V:</label> 
+            <select id="cabos_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Condições dos cabos e conexões FASE R:</label> 
+            <select id="cabos_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+		    <div class="form-group">
+            <label>Re-aperto dos terminais FASE A:</label> 
+            <select id="aperto_a"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Re-aperto dos terminais FASE B:</label> 
+            <select id="aperto_b"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Re-aperto dos terminais FASE V:</label> 
+            <select id="aperto_v"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+            <label>Re-aperto dos terminais FASE R:</label> 
+            <select id="aperto_r"><option value="OK">OK</option><option value="NÃO OK">NÃO OK</option></select>
+        </div>
+    </form>
+</div>
+
+<button class="save-button" onclick="exportToExcel()">Salvar como XLSX</button>
+
+<script>
+    function exportToExcel() {
+        let formData = {};
+        const form = document.getElementById("dataForm");
+
+        [...form.elements].forEach(input => {
+            if (input.type !== "button") formData[input.id] = input.value;
+        });
+
+        let data = [Object.keys(formData), Object.values(formData)];
+        let wb = XLSX.utils.book_new();
+        let ws = XLSX.utils.aoa_to_sheet(data);
+
+        XLSX.utils.book_append_sheet(wb, ws, "Dados");
+        XLSX.writeFile(wb, "dados.xlsx");
+    }
+</script>
+
+</body>
+</html>
