@@ -281,7 +281,7 @@
         let ws = XLSX.utils.aoa_to_sheet(data);
 
         XLSX.utils.book_append_sheet(wb, ws, "Dados");
-        XLSX.writeFile(wb, ${fileName}.xlsx);
+        XLSX.writeFile(wb, `${fileName}.xlsx`);
     }
     
     
@@ -289,7 +289,7 @@
 
 if (loggedInUser) {
 	const welcomeMessage = document.querySelector("#welcome-message");
-	welcomeMessage.textContent = Bem-vindo, ${loggedInUser.nome} !;
+	welcomeMessage.textContent = `Bem-vindo, ${loggedInUser.nome} !`;
 	document.body.classList.add("blur-effect");
 	
 } else {
