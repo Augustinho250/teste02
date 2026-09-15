@@ -6,6 +6,15 @@ android {
     namespace 'com.masteria.app'
     compileSdk 35
 
+    signingConfigs {
+        debugStable {
+            storeFile file('../masteria-dev.keystore')
+            storePassword 'masteria-dev-2026'
+            keyAlias 'masteria-dev'
+            keyPassword 'masteria-dev-2026'
+        }
+    }
+
     defaultConfig {
         applicationId 'com.masteria.app'
         minSdk 23
@@ -15,6 +24,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig signingConfigs.debugStable
+        }
         release {
             minifyEnabled false
         }
