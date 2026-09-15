@@ -2,6 +2,7 @@ package com.masteria.app;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -9,6 +10,7 @@ import android.os.Bundle;
 import android.security.keystore.KeyGenParameterSpec;
 import android.security.keystore.KeyProperties;
 import android.text.InputType;
+import android.util.Base64;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -45,9 +47,6 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
-import android.content.SharedPreferences;
-import android.util.Base64;
-
 public class MainActivity extends Activity {
     private static final String PREFS = "master_ia_prefs";
     private static final String DEFAULT_MODEL = "gpt-5.6-sol";
@@ -61,8 +60,10 @@ public class MainActivity extends Activity {
     private ScrollView scrollView;
     private EditText input;
     private Button sendButton;
+    private Button settingsButton;
     private Switch webSwitch;
     private ProgressBar progress;
+    private TextView connectionStatus;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,104 +77,147 @@ public class MainActivity extends Activity {
 
         buildUi();
         loadHistory();
+        refreshConnectionState();
 
         if (history.isEmpty()) {
-            addAssistant("Olá! Eu sou o Master IA. Posso pesquisar na web e atuar como especialista em software, programação, engenharia, automação, dados e tecnologia. Abra Configurações e informe sua chave de API para começar.", false);
+            if (hasApiKey()) {
+                addAssistant("Olá! Eu sou o Master IA. A conexão com a IA já está configurada neste aparelho. Posso pesquisar na web e atuar como especialista em software, programação, engenharia, automação, dados e tecnologia.", false);
+            } else {
+                addAssistant("Olá! Eu sou o Master IA. Para proteger sua conta, a conexão com a OpenAI é feita uma única vez e fica criptografada neste aparelho. Toque em Conectar IA para concluir a configuração inicial.", false);
+            }
         } else {
             renderHistory();
         }
     }
 
     private void buildUi() {
+        final int screenDp = getResources().getConfiguration().screenWidthDp;
+        final boolean compact = screenDp < 420;
+        final boolean veryCompact = screenDp < 350;
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(dp(14), dp(12), dp(14), dp(12));
+        root.setPadding(dp(compact ? 10 : 14), dp(10), dp(compact ? 10 : 14), dp(8));
         root.setBackgroundColor(Color.rgb(8, 15, 28));
 
         LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setOrientation(compact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
+        header.setGravity(compact ? Gravity.START : Gravity.CENTER_VERTICAL);
 
         LinearLayout titleWrap = new LinearLayout(this);
         titleWrap.setOrientation(LinearLayout.VERTICAL);
-        titleWrap.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        if (!compact) {
+            titleWrap.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        } else {
+            titleWrap.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        }
 
         TextView title = new TextView(this);
         title.setText("Master IA");
         title.setTextColor(Color.WHITE);
-        title.setTextSize(22);
+        title.setTextSize(compact ? 20 : 22);
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
 
         TextView subtitle = new TextView(this);
         subtitle.setText("Assistente inteligente com pesquisa online");
         subtitle.setTextColor(Color.rgb(148, 163, 184));
-        subtitle.setTextSize(12);
+        subtitle.setTextSize(11.5f);
+        subtitle.setMaxLines(2);
+
+        connectionStatus = new TextView(this);
+        connectionStatus.setTextSize(11.5f);
+        connectionStatus.setPadding(0, dp(3), 0, 0);
 
         titleWrap.addView(title);
         titleWrap.addView(subtitle);
+        titleWrap.addView(connectionStatus);
         header.addView(titleWrap);
 
-        Button settings = makeButton("Configurações");
-        settings.setOnClickListener(v -> openSettings());
-        header.addView(settings);
+        settingsButton = makeButton("Conectar IA");
+        settingsButton.setOnClickListener(v -> openSettings());
+        LinearLayout.LayoutParams settingsLp = new LinearLayout.LayoutParams(
+                compact ? LinearLayout.LayoutParams.MATCH_PARENT : LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(46));
+        settingsLp.setMargins(compact ? 0 : dp(8), compact ? dp(8) : 0, 0, 0);
+        header.addView(settingsButton, settingsLp);
         root.addView(header);
 
         LinearLayout toolbar = new LinearLayout(this);
-        toolbar.setOrientation(LinearLayout.HORIZONTAL);
+        toolbar.setOrientation(veryCompact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         toolbar.setGravity(Gravity.CENTER_VERTICAL);
-        toolbar.setPadding(0, dp(10), 0, dp(8));
+        toolbar.setPadding(0, dp(8), 0, dp(6));
 
         webSwitch = new Switch(this);
         webSwitch.setText("Pesquisar na web");
         webSwitch.setTextColor(Color.WHITE);
-        webSwitch.setTextSize(14);
+        webSwitch.setTextSize(13);
         webSwitch.setChecked(prefs.getBoolean("web", true));
         webSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> prefs.edit().putBoolean("web", isChecked).apply());
-        toolbar.addView(webSwitch, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        if (veryCompact) {
+            toolbar.addView(webSwitch, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        } else {
+            toolbar.addView(webSwitch, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+        }
 
         Button clear = makeButton("Limpar");
         clear.setOnClickListener(v -> confirmClear());
-        toolbar.addView(clear);
+        LinearLayout.LayoutParams clearLp = new LinearLayout.LayoutParams(
+                veryCompact ? LinearLayout.LayoutParams.MATCH_PARENT : LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(44));
+        clearLp.setMargins(veryCompact ? 0 : dp(6), veryCompact ? dp(4) : 0, 0, 0);
+        toolbar.addView(clear, clearLp);
         root.addView(toolbar);
 
         scrollView = new ScrollView(this);
         scrollView.setFillViewport(true);
+        scrollView.setClipToPadding(false);
         chatList = new LinearLayout(this);
         chatList.setOrientation(LinearLayout.VERTICAL);
-        chatList.setPadding(0, dp(4), 0, dp(4));
-        scrollView.addView(chatList);
+        chatList.setPadding(0, dp(4), 0, dp(8));
+        scrollView.addView(chatList, new ScrollView.LayoutParams(
+                ScrollView.LayoutParams.MATCH_PARENT,
+                ScrollView.LayoutParams.WRAP_CONTENT));
         root.addView(scrollView, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f));
 
         progress = new ProgressBar(this);
         progress.setIndeterminate(true);
         progress.setVisibility(View.GONE);
-        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(dp(28), dp(28));
+        LinearLayout.LayoutParams progressParams = new LinearLayout.LayoutParams(dp(26), dp(26));
         progressParams.gravity = Gravity.CENTER_HORIZONTAL;
-        progressParams.setMargins(0, dp(4), 0, dp(4));
+        progressParams.setMargins(0, dp(3), 0, dp(3));
         root.addView(progress, progressParams);
 
         LinearLayout composer = new LinearLayout(this);
-        composer.setOrientation(LinearLayout.HORIZONTAL);
+        composer.setOrientation(veryCompact ? LinearLayout.VERTICAL : LinearLayout.HORIZONTAL);
         composer.setGravity(Gravity.BOTTOM);
-        composer.setPadding(0, dp(8), 0, 0);
+        composer.setPadding(0, dp(6), 0, 0);
 
         input = new EditText(this);
         input.setHint("Pergunte qualquer coisa...");
         input.setHintTextColor(Color.rgb(100, 116, 139));
         input.setTextColor(Color.WHITE);
         input.setTextSize(16);
-        input.setMinHeight(dp(52));
-        input.setMaxLines(5);
-        input.setPadding(dp(14), dp(10), dp(14), dp(10));
+        input.setMinHeight(dp(50));
+        input.setMaxLines(compact ? 4 : 5);
+        input.setPadding(dp(13), dp(9), dp(13), dp(9));
         input.setBackground(roundRect(Color.rgb(20, 31, 50), 18));
-        LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
-        inputParams.setMargins(0, 0, dp(8), 0);
-        composer.addView(input, inputParams);
+
+        if (veryCompact) {
+            composer.addView(input, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        } else {
+            LinearLayout.LayoutParams inputParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            inputParams.setMargins(0, 0, dp(7), 0);
+            composer.addView(input, inputParams);
+        }
 
         sendButton = makeButton("Enviar");
-        sendButton.setMinHeight(dp(52));
+        sendButton.setMinHeight(dp(50));
         sendButton.setOnClickListener(v -> sendMessage());
-        composer.addView(sendButton);
+        LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(
+                veryCompact ? LinearLayout.LayoutParams.MATCH_PARENT : LinearLayout.LayoutParams.WRAP_CONTENT,
+                dp(50));
+        sendLp.setMargins(0, veryCompact ? dp(6) : 0, 0, 0);
+        composer.addView(sendButton, sendLp);
         root.addView(composer);
 
         setContentView(root);
@@ -185,7 +229,9 @@ public class MainActivity extends Activity {
         b.setAllCaps(false);
         b.setTextColor(Color.WHITE);
         b.setTextSize(13);
-        b.setPadding(dp(12), 0, dp(12), 0);
+        b.setPadding(dp(10), 0, dp(10), 0);
+        b.setMinWidth(0);
+        b.setMinimumWidth(0);
         b.setBackground(roundRect(Color.rgb(37, 99, 235), 14));
         return b;
     }
@@ -197,6 +243,26 @@ public class MainActivity extends Activity {
         return gd;
     }
 
+    private boolean hasApiKey() {
+        try {
+            String key = SecureStore.load(this);
+            return key != null && !key.trim().isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private void refreshConnectionState() {
+        boolean connected = hasApiKey();
+        if (connectionStatus != null) {
+            connectionStatus.setText(connected ? "● IA conectada e pronta" : "● Configuração inicial necessária");
+            connectionStatus.setTextColor(connected ? Color.rgb(74, 222, 128) : Color.rgb(251, 191, 36));
+        }
+        if (settingsButton != null) {
+            settingsButton.setText(connected ? "Ajustes" : "Conectar IA");
+        }
+    }
+
     private void sendMessage() {
         String text = input.getText().toString().trim();
         if (text.isEmpty()) return;
@@ -205,13 +271,13 @@ public class MainActivity extends Activity {
         try {
             apiKey = SecureStore.load(this);
         } catch (Exception e) {
-            showToast("Não foi possível ler a chave de API.");
+            showToast("Não foi possível acessar a conexão segura da IA.");
             return;
         }
 
         if (apiKey == null || apiKey.isEmpty()) {
+            showToast("Faça a conexão inicial da IA uma única vez.");
             openSettings();
-            showToast("Configure sua chave de API primeiro.");
             return;
         }
 
@@ -246,7 +312,7 @@ public class MainActivity extends Activity {
         body.put("instructions", systemInstructions());
 
         JSONArray inputItems = new JSONArray();
-        int start = Math.max(0, snapshot.size() - 16);
+        int start = Math.max(0, snapshot.size() - 20);
         for (int i = start; i < snapshot.size(); i++) {
             ChatMessage m = snapshot.get(i);
             JSONObject item = new JSONObject();
@@ -329,9 +395,7 @@ public class MainActivity extends Activity {
             }
         }
 
-        if (text.length() == 0) {
-            text.append("A API respondeu sem texto utilizável.");
-        }
+        if (text.length() == 0) text.append("A API respondeu sem texto utilizável.");
         if (!sources.isEmpty()) {
             text.append("\n\nFontes:\n");
             int count = 0;
@@ -385,13 +449,15 @@ public class MainActivity extends Activity {
         bubble.setText(text);
         bubble.setTextColor(Color.WHITE);
         bubble.setTextSize(15);
-        bubble.setPadding(dp(14), dp(11), dp(14), dp(11));
+        bubble.setPadding(dp(13), dp(10), dp(13), dp(10));
         bubble.setTextIsSelectable(true);
+        bubble.setMaxWidth(Math.max(dp(220), getResources().getDisplayMetrics().widthPixels - dp(42)));
         bubble.setBackground(roundRect(user ? Color.rgb(37, 99, 235) : Color.rgb(20, 31, 50), 18));
 
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
         lp.gravity = user ? Gravity.END : Gravity.START;
-        lp.setMargins(user ? dp(38) : 0, dp(5), user ? 0 : dp(38), dp(5));
+        int side = getResources().getConfiguration().screenWidthDp < 360 ? dp(16) : dp(34);
+        lp.setMargins(user ? side : 0, dp(4), user ? 0 : side, dp(4));
         chatList.addView(bubble, lp);
         scrollToBottom();
     }
@@ -402,7 +468,7 @@ public class MainActivity extends Activity {
     }
 
     private void trimHistory() {
-        while (history.size() > 40) history.remove(0);
+        while (history.size() > 50) history.remove(0);
     }
 
     private void saveHistory() {
@@ -450,35 +516,41 @@ public class MainActivity extends Activity {
     private void openSettings() {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
-        box.setPadding(dp(20), dp(8), dp(20), 0);
+        box.setPadding(dp(18), dp(8), dp(18), dp(8));
 
         TextView note = new TextView(this);
-        note.setText("A chave é criptografada com o Android Keystore e fica somente neste aparelho. O uso da API depende dos limites e cobrança do provedor.");
+        note.setText("Configuração inicial: informe sua chave uma única vez. Ela será criptografada pelo Android Keystore e reutilizada automaticamente nas próximas aberturas. Não coloque chaves secretas diretamente dentro do APK.");
         note.setTextSize(13);
-        note.setPadding(0, 0, 0, dp(12));
+        note.setPadding(0, 0, 0, dp(10));
         box.addView(note);
 
         EditText key = new EditText(this);
-        key.setHint("Chave de API OpenAI");
+        key.setHint(hasApiKey() ? "Chave já configurada — deixe em branco para manter" : "Chave de API OpenAI");
         key.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        try {
-            String saved = SecureStore.load(this);
-            if (saved != null && !saved.isEmpty()) key.setText(saved);
-        } catch (Exception ignored) {
-        }
-        box.addView(key);
+        key.setSingleLine(true);
+        box.addView(key, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(54)));
 
         EditText model = new EditText(this);
         model.setHint("Modelo");
         model.setSingleLine(true);
         model.setText(prefs.getString("model", DEFAULT_MODEL));
-        box.addView(model);
+        box.addView(model, new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(54)));
+
+        TextView modelInfo = new TextView(this);
+        modelInfo.setText("Padrão: gpt-5.6-sol. Você pode trocar por outro modelo disponível na sua conta.");
+        modelInfo.setTextSize(12);
+        modelInfo.setPadding(0, dp(4), 0, dp(8));
+        box.addView(modelInfo);
+
+        ScrollView settingsScroll = new ScrollView(this);
+        settingsScroll.setFillViewport(true);
+        settingsScroll.addView(box);
 
         AlertDialog dialog = new AlertDialog.Builder(this)
                 .setTitle("Configurações da IA")
-                .setView(box)
+                .setView(settingsScroll)
                 .setNegativeButton("Cancelar", null)
-                .setNeutralButton("Apagar chave", null)
+                .setNeutralButton("Desconectar", null)
                 .setPositiveButton("Salvar", null)
                 .create();
 
@@ -489,8 +561,13 @@ public class MainActivity extends Activity {
                 if (m.isEmpty()) m = DEFAULT_MODEL;
                 try {
                     if (!k.isEmpty()) SecureStore.save(this, k);
+                    if (!hasApiKey()) {
+                        showToast("Informe a chave para concluir a configuração inicial.");
+                        return;
+                    }
                     prefs.edit().putString("model", m).apply();
-                    showToast("Configurações salvas.");
+                    refreshConnectionState();
+                    showToast("IA configurada. A conexão ficará salva neste aparelho.");
                     dialog.dismiss();
                 } catch (Exception e) {
                     showToast("Erro ao proteger a chave: " + e.getMessage());
@@ -499,10 +576,11 @@ public class MainActivity extends Activity {
             dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
                 try {
                     SecureStore.delete(this);
-                    key.setText("");
-                    showToast("Chave removida deste aparelho.");
+                    refreshConnectionState();
+                    showToast("IA desconectada deste aparelho.");
+                    dialog.dismiss();
                 } catch (Exception e) {
-                    showToast("Não foi possível remover a chave.");
+                    showToast("Não foi possível remover a conexão.");
                 }
             });
         });
@@ -513,6 +591,7 @@ public class MainActivity extends Activity {
         progress.setVisibility(loading ? View.VISIBLE : View.GONE);
         sendButton.setEnabled(!loading);
         input.setEnabled(!loading);
+        webSwitch.setEnabled(!loading);
         if (!loading) input.requestFocus();
     }
 
